@@ -26,7 +26,14 @@ def extract_transcript_details(youtube_video_url):
         return transcript.strip()
 
     except Exception as e:
-        st.error(f"Error retrieving transcript: {str(e)}")
+        # Provide a clearer error message to the user
+        if "transcript" in str(e):
+            st.error(f"Could not retrieve a transcript for the video: {youtube_video_url}. This is most likely caused by:\n\n"
+                      "1. Subtitles are disabled for this video.\n"
+                      "2. Automatic captions are not available.\n"
+                      "3. The video is private or unlisted.")
+        else:
+            st.error(f"Error retrieving transcript: {str(e)}")
         return None
 
 # Function to generate summary using Google Gemini
