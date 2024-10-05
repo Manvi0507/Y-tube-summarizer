@@ -56,4 +56,4 @@ if st.button("Get Detailed Notes"):
 # Button to clear output
 if st.button("Clear Response"):
     summary_output.empty()  # Clear the output
-    st.experimental_rerun()  # Rerun the app to reset the state
+   # st.experimental_rerun()  # Rerun the app to reset the state
