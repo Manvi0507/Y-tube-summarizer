@@ -35,6 +35,7 @@ def extract_transcript_details(youtube_video_url):
         video_id = get_video_id(youtube_video_url)
         transcript_text = YouTubeTranscriptApi.get_transcript(video_id)
 
+        # Concatenate all transcript parts into a single string
         transcript = " ".join([i["text"] for i in transcript_text])
         return transcript
 
@@ -76,3 +77,4 @@ if st.button("Get Detailed Notes"):
             st.warning("No transcript available for this video.")
     except Exception as e:
         st.error(str(e))
+
