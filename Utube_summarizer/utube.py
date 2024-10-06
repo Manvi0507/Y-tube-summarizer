@@ -1,47 +1,58 @@
 import streamlit as st
-import io
-from pytube import YouTube
-import torch
-from transformers import pipeline
+from dotenv import load_dotenv
 
-# Load the Whisper model
-@st.cache_resource
-def load_whisper_model():
-    model = pipeline("automatic-speech-recognition", model="openai/whisper-large")
-    return model
+load_dotenv() ##load all the nevironment variables
+import os
+import google.generativeai as genai
 
-# Function to download audio from YouTube and return as a BytesIO object
-def download_audio(youtube_url):
-    yt = YouTube(youtube_url)
-    audio_stream = yt.streams.filter(only_audio=True).first()
-    audio_file = audio_stream.download(filename="audio.mp4")
-    return audio_file
+from youtube_transcript_api import YouTubeTranscriptApi
 
-# Streamlit UI
-st.title("YouTube Audio Transcriber and Summarizer with Whisper")
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-youtube_url = st.text_input("Enter YouTube Video URL:")
+prompt="""You are Yotube video summarizer. You will be taking the transcript text
+and summarizing the entire video and providing the important summary in points
+within 250 words. Please provide the summary of the text given here:  """
 
-if st.button("Transcribe and Summarize"):
-    if youtube_url:
-        with st.spinner("Downloading audio..."):
-            audio_file_path = download_audio(youtube_url)
+
+## getting the transcript data from yt videos
+def extract_transcript_details(youtube_video_url):
+    try:
+        video_id=youtube_video_url.split("=")[1]
         
-        st.success("Audio downloaded successfully!")
+        transcript_text=YouTubeTranscriptApi.get_transcript(video_id)
 
-        # Load the Whisper model
-        whisper_model = load_whisper_model()
+        transcript = ""
+        for i in transcript_text:
+            transcript += " " + i["text"]
 
-        with st.spinner("Transcribing audio..."):
-            audio_bytes = io.BytesIO(audio_file_path)
-            transcript = whisper_model(audio_bytes)["text"]
-            st.success("Transcription completed!")
-            st.write(transcript)
+        return transcript
 
-            with st.spinner("Summarizing text..."):
-                summarizer = pipeline("summarization")
-                summary = summarizer(transcript, max_length=130, min_length=30, do_sample=False)
-                st.success("Summarization completed!")
-                st.write(summary[0]['summary_text'])
-    else:
-        st.warning("Please enter a valid YouTube URL.")
+    except Exception as e:
+        raise e
+    
+## getting the summary based on Prompt from Google Gemini Pro
+def generate_gemini_content(transcript_text,prompt):
+
+    model=genai.GenerativeModel("gemini-pro")
+    response=model.generate_content(prompt+transcript_text)
+    return response.text
+
+st.title("YouTube Transcript to Detailed Notes Converter")
+youtube_link = st.text_input("Enter YouTube Video Link:")
+
+if youtube_link:
+    video_id = youtube_link.split("=")[1]
+    print(video_id)
+    st.image(f"http://img.youtube.com/vi/{video_id}/0.jpg", use_column_width=True)
+
+if st.button("Get Detailed Notes"):
+    transcript_text=extract_transcript_details(youtube_link)
+
+    if transcript_text:
+        summary=generate_gemini_content(transcript_text,prompt)
+        st.markdown("## Detailed Notes:")
+        st.write(summary)
+
+
+
+
