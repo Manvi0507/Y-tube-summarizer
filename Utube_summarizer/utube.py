@@ -45,7 +45,7 @@ def extract_transcript_details(youtube_video_url):
 # Function to generate summary using Gemini API
 def generate_gemini_content(transcript_text, prompt):
     try:
-        model = genai.GenerativeModel("gemini-pro")
+        model = genai.GenerativeModel("gemini-flash")
         response = model.generate_content(prompt + transcript_text)
         return response.text
     except Exception as e:
