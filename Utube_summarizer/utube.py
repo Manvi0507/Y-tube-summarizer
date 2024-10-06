@@ -26,18 +26,16 @@ def summarize_text(text):
     Summarize the text using the Gemini API.
     """
     try:
-        # Use the 'chat' or 'generate_text' method depending on what Gemini supports
-        response = genai.chat(
-            model="gemini-1.5-pro",
-            messages=[
-                {"role": "system", "content": "Summarize the following text:"},
-                {"role": "user", "content": text}
-            ]
+        # Use the 'generate_text()' method to generate a summary.
+        response = genai.generate_text(
+            model="models/text-bison-001",  # Ensure you are using the right model
+            prompt=f"Summarize the following text: {text}",
+            max_output_tokens=200  # Adjust as necessary
         )
         
-        # Check if the 'candidates' list exists and has at least one item
+        # Extract the summary from the response
         if 'candidates' in response and len(response['candidates']) > 0:
-            summary = response['candidates'][0]['message']['content']
+            summary = response['candidates'][0]['output']
             return summary
         else:
             return "Error: No summary generated. Response did not contain valid candidates."
