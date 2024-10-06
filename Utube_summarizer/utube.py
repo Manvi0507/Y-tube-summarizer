@@ -2,7 +2,7 @@ import streamlit as st
 from dotenv import load_dotenv
 import os
 import google.generativeai as genai
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
 
 # Load environment variables
 load_dotenv()
@@ -29,8 +29,10 @@ def extract_transcript_details(youtube_video_url):
 
         return transcript
 
+    except TranscriptsDisabled:
+        return "Transcripts are disabled for this video."
     except Exception as e:
-        raise e
+        return f"An error occurred: {str(e)}"
 
 # Generate summary using Gemini API
 def generate_gemini_content(transcript_text, prompt):
@@ -67,9 +69,11 @@ if youtube_link:
 if st.button("Get Detailed Notes"):
     transcript_text = extract_transcript_details(youtube_link)
 
-    if transcript_text:
+    if transcript_text and "Transcripts are disabled" not in transcript_text:
         summary = generate_gemini_content(transcript_text, prompt)
         st.markdown("## Detailed Notes:")
         st.write(summary)
+    elif "Transcripts are disabled" in transcript_text:
+        st.error("Transcripts are disabled for this video.")
     else:
         st.error("Could not fetch transcript.")
