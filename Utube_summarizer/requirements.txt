@@ -3,3 +3,8 @@ streamlit
 google-generativeai
 python-dotenv
 pathlib
+pytube
+pydub 
+SpeechRecognition 
+transformers 
+streamlit
