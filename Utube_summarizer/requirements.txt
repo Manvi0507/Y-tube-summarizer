@@ -7,4 +7,4 @@ pytube
 pydub 
 SpeechRecognition 
 transformers 
-streamlit
+torch
