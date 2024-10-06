@@ -1,79 +1,62 @@
 import streamlit as st
-from dotenv import load_dotenv
 import os
-import google.generativeai as genai
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
+from pytube import YouTube
+from pydub import AudioSegment
+import speech_recognition as sr
+from transformers import pipeline
 
-# Load environment variables
-load_dotenv()
+# Function to download audio from YouTube
+def download_audio(youtube_url):
+    yt = YouTube(youtube_url)
+    audio_stream = yt.streams.filter(only_audio=True).first()
+    audio_file_path = audio_stream.download(filename="audio.mp4")
+    return audio_file_path
 
-# Configure Gemini API
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# Function to convert audio to text
+def audio_to_text(audio_file_path):
+    recognizer = sr.Recognizer()
+    audio = AudioSegment.from_file(audio_file_path, format="mp4")
+    audio.export("audio.wav", format="wav")  # Convert to wav for recognition
+    with sr.AudioFile("audio.wav") as source:
+        audio_data = recognizer.record(source)
+        text = recognizer.recognize_google(audio_data)
+    return text
 
-# Prompt template for generating summary
-prompt = """
-You are a YouTube video summarizer. You will take the transcript text
-and summarize the entire video, providing the most important points
-within 250 words. Please provide the summary of the text given here: 
-"""
+# Function to summarize text
+def summarize_text(text):
+    summarizer = pipeline("summarization")
+    summary = summarizer(text, max_length=130, min_length=30, do_sample=False)
+    return summary[0]['summary_text']
 
-# Extract the transcript from a YouTube video
-def extract_transcript_details(youtube_video_url):
-    try:
-        video_id = youtube_video_url.split("=")[1]
-        transcript_text = YouTubeTranscriptApi.get_transcript(video_id)
+# Streamlit UI
+st.title("YouTube Audio Extractor and Summarizer")
 
-        transcript = ""
-        for i in transcript_text:
-            transcript += " " + i["text"]
+youtube_url = st.text_input("Enter YouTube Video URL:")
 
-        return transcript
+if st.button("Extract and Summarize"):
+    if youtube_url:
+        with st.spinner("Downloading audio..."):
+            audio_path = download_audio(youtube_url)
+        
+        st.success("Audio downloaded successfully!")
 
-    except TranscriptsDisabled:
-        return "Transcripts are disabled for this video."
-    except Exception as e:
-        return f"An error occurred: {str(e)}"
+        with st.spinner("Transcribing audio..."):
+            try:
+                transcript = audio_to_text(audio_path)
+                st.success("Transcription completed!")
+                st.write(transcript)
 
-# Generate summary using Gemini API
-def generate_gemini_content(transcript_text, prompt):
-    try:
-        # Call the `generate_text` method instead of using `GenerativeModel`
-        response = genai.generate_text(
-            model="models/text-bison-001",  # Adjust the model name as needed
-            prompt=prompt + transcript_text,
-            max_output_tokens=200  # Limit the output to 200 tokens (adjust as necessary)
-        )
-
-        # Extract the summary from the response
-        if 'candidates' in response and len(response['candidates']) > 0:
-            summary = response['candidates'][0]['output']
-            return summary
-        else:
-            return "Error: No summary generated."
-
-    except Exception as e:
-        return f"Error generating summary: {str(e)}"
-
-# Streamlit application
-st.title("YouTube Transcript to Detailed Notes Converter")
-
-# Input for the YouTube link
-youtube_link = st.text_input("Enter YouTube Video Link:")
-
-# Show thumbnail of the YouTube video
-if youtube_link:
-    video_id = youtube_link.split("=")[1]
-    st.image(f"http://img.youtube.com/vi/{video_id}/0.jpg", use_column_width=True)
-
-# Button to fetch detailed notes
-if st.button("Get Detailed Notes"):
-    transcript_text = extract_transcript_details(youtube_link)
-
-    if transcript_text and "Transcripts are disabled" not in transcript_text:
-        summary = generate_gemini_content(transcript_text, prompt)
-        st.markdown("## Detailed Notes:")
-        st.write(summary)
-    elif "Transcripts are disabled" in transcript_text:
-        st.error("Transcripts are disabled for this video.")
+                with st.spinner("Summarizing text..."):
+                    summary = summarize_text(transcript)
+                    st.success("Summarization completed!")
+                    st.write(summary)
+            except Exception as e:
+                st.error(f"Error during transcription: {e}")
     else:
-        st.error("Could not fetch transcript.")
+        st.warning("Please enter a valid YouTube URL.")
+
+# Clean up temporary files
+if os.path.exists("audio.mp4"):
+    os.remove("audio.mp4")
+if os.path.exists("audio.wav"):
+    os.remove("audio.wav")
