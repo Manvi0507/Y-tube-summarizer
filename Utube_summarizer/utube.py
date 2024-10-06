@@ -2,7 +2,7 @@ import os
 import streamlit as st
 from youtube_transcript_api import YouTubeTranscriptApi
 from dotenv import load_dotenv
-import google.generativeai as genai # Assuming this is the correct library for Gemini LLM
+import google.generativeai as genai
 
 # Load environment variables from .env file
 load_dotenv()
@@ -26,8 +26,10 @@ def summarize_text(text):
     Summarize the text using the Gemini API.
     """
     try:
-        response = genai.generate(model="gemini-1.5-pro", prompt=text, max_tokens=100)  # Adjust the parameters as needed
-        summary = response['choices'][0]['text']  # Assuming this is how the API responds
+        # Use the 'chat' or 'generate_text' method depending on what Gemini supports
+        response = genai.chat(model="gemini-1.5-pro", messages=[{"role": "system", "content": "Summarize the following text:"}, {"role": "user", "content": text}])
+        
+        summary = response['candidates'][0]['message']['content']  # This may vary based on the response structure
         return summary
     except Exception as e:
         return f"Error generating summary: {str(e)}"
@@ -47,7 +49,7 @@ def extract_video_id(youtube_url):
         return None
 
 def main():
-    st.title("YouTube Video Transcript Summarizer")
+    st.title("YouTube Video Transcript Summarizer (Gemini API)")
 
     # Input YouTube URL
     youtube_url = st.text_input("Enter YouTube Video URL:")
@@ -72,4 +74,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
