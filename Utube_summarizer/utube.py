@@ -27,10 +27,21 @@ def summarize_text(text):
     """
     try:
         # Use the 'chat' or 'generate_text' method depending on what Gemini supports
-        response = genai.chat(model="gemini-1.5-pro", messages=[{"role": "system", "content": "Summarize the following text:"}, {"role": "user", "content": text}])
+        response = genai.chat(
+            model="gemini-1.5-pro",
+            messages=[
+                {"role": "system", "content": "Summarize the following text:"},
+                {"role": "user", "content": text}
+            ]
+        )
         
-        summary = response['candidates'][0]['message']['content']  # This may vary based on the response structure
-        return summary
+        # Check if the 'candidates' list exists and has at least one item
+        if 'candidates' in response and len(response['candidates']) > 0:
+            summary = response['candidates'][0]['message']['content']
+            return summary
+        else:
+            return "Error: No summary generated. Response did not contain valid candidates."
+
     except Exception as e:
         return f"Error generating summary: {str(e)}"
 
