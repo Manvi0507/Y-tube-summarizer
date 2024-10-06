@@ -1,80 +1,75 @@
-import streamlit as st
-from dotenv import load_dotenv
 import os
-import google.generativeai as genai
+import streamlit as st
 from youtube_transcript_api import YouTubeTranscriptApi
-from urllib.parse import urlparse, parse_qs
+from dotenv import load_dotenv
+import google.generativeai as genai # Assuming this is the correct library for Gemini LLM
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
 # Configure Gemini API
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-# Define the prompt
-prompt = """
-You are a YouTube video summarizer. You will take the transcript text and summarize the entire video,
-providing the important points in 250 words. Please provide the summary of the text given here:
-"""
-
-# Function to extract the video ID from a YouTube URL
-def get_video_id(youtube_url):
+def get_transcript(video_id):
+    """
+    Fetch the transcript of a YouTube video.
+    """
     try:
-        query = urlparse(youtube_url).query
-        video_id = parse_qs(query).get("v")
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        full_text = " ".join([item['text'] for item in transcript])
+        return full_text
+    except Exception as e:
+        return str(e)
+
+def summarize_text(text):
+    """
+    Summarize the text using the Gemini API.
+    """
+    try:
+        response = genai.generate(model="gemini-1.5-pro", prompt=text, max_tokens=100)  # Adjust the parameters as needed
+        summary = response['choices'][0]['text']  # Assuming this is how the API responds
+        return summary
+    except Exception as e:
+        return f"Error generating summary: {str(e)}"
+
+def extract_video_id(youtube_url):
+    """
+    Extract the video ID from a YouTube URL.
+    """
+    try:
+        if "youtube.com" in youtube_url:
+            return youtube_url.split("v=")[1]
+        elif "youtu.be" in youtube_url:
+            return youtube_url.split("/")[-1]
+        else:
+            return None
+    except Exception as e:
+        return None
+
+def main():
+    st.title("YouTube Video Transcript Summarizer")
+
+    # Input YouTube URL
+    youtube_url = st.text_input("Enter YouTube Video URL:")
+    
+    if youtube_url:
+        video_id = extract_video_id(youtube_url)
         if video_id:
-            return video_id[0]
+            st.write("Fetching transcript...")
+            transcript = get_transcript(video_id)
+            
+            if transcript:
+                st.write("Transcript fetched. Generating summary...")
+                summary = summarize_text(transcript)
+                st.subheader("Summary:")
+                st.write(summary)
+            else:
+                st.error("Could not retrieve transcript.")
         else:
-            raise ValueError("Invalid YouTube URL format.")
-    except Exception as e:
-        raise ValueError("Failed to extract video ID. Please check the URL.") from e
+            st.error("Invalid YouTube URL.")
+    else:
+        st.write("Please enter a YouTube video URL to get started.")
 
-# Function to extract transcript from a YouTube video
-def extract_transcript_details(youtube_video_url):
-    try:
-        video_id = get_video_id(youtube_video_url)
-        transcript_text = YouTubeTranscriptApi.get_transcript(video_id)
-
-        # Concatenate all transcript parts into a single string
-        transcript = " ".join([i["text"] for i in transcript_text])
-        return transcript
-
-    except Exception as e:
-        raise e
-
-# Function to generate summary using Gemini API
-def generate_gemini_content(transcript_text, prompt):
-    try:
-        model = genai.GenerativeModel("gemini-flash")
-        response = model.generate_content(prompt + transcript_text)
-        return response.text
-    except Exception as e:
-        raise Exception("Failed to generate summary.") from e
-
-# Streamlit UI
-st.title("YouTube Transcript to Detailed Notes Converter")
-
-# Get YouTube link from user
-youtube_link = st.text_input("Enter YouTube Video Link:")
-
-# Display YouTube thumbnail if a link is provided
-if youtube_link:
-    try:
-        video_id = get_video_id(youtube_link)
-        st.image(f"http://img.youtube.com/vi/{video_id}/0.jpg", use_column_width=True)
-    except ValueError as e:
-        st.error(str(e))
-
-# Button to generate notes
-if st.button("Get Detailed Notes"):
-    try:
-        transcript_text = extract_transcript_details(youtube_link)
-        if transcript_text:
-            summary = generate_gemini_content(transcript_text, prompt)
-            st.markdown("## Detailed Notes:")
-            st.write(summary)
-        else:
-            st.warning("No transcript available for this video.")
-    except Exception as e:
-        st.error(str(e))
+if __name__ == "__main__":
+    main()
 
